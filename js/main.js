@@ -233,94 +233,90 @@
     uniform float u_time;
     uniform vec2 u_mouse;
 
-    const vec3 PAPER = vec3(0.965, 0.961, 0.949); // #f6f5f2
-    const vec3 DEEP  = vec3(0.357, 0.071, 0.851); // #5b12d9
-    const vec3 VIO   = vec3(0.416, 0.173, 1.000); // #6a2cff
-    const vec3 MAG   = vec3(0.847, 0.282, 0.710); // rosa/magenta
-    const vec3 LIL   = vec3(0.788, 0.698, 1.000); // lilás
-    const vec3 WHITE = vec3(0.995, 0.992, 1.000);
+    const vec3 PAPER = vec3(0.972, 0.969, 0.958);
+    const vec3 DEEP  = vec3(0.337, 0.055, 0.796);
+    const vec3 VIO   = vec3(0.435, 0.145, 0.980);
+    const vec3 MAG   = vec3(0.910, 0.240, 0.620);
+    const vec3 LIL   = vec3(0.785, 0.640, 1.000);
+    const vec3 WHITE = vec3(1.000, 0.995, 1.000);
 
     float gauss(float x, float k) { return exp(-x * x * k); }
 
     void main() {
       vec2 p = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;
       float aspect = u_res.x / u_res.y;
-      float land = smoothstep(0.9, 1.3, aspect);
-      float t = u_time;
+      float t = u_time * 0.82;
 
-      // O conjunto inteiro respira e cruza o centro como uma faixa de seda.
-      vec2 drift = vec2(
-        0.045 * sin(t * 0.47) + u_mouse.x * 0.045,
-        0.025 * cos(t * 0.41) - u_mouse.y * 0.035
-      );
-      vec2 c = p - drift;
-
-      float baseAngle = mix(56.0, 29.0, land);
-      float ang = radians(baseAngle + 8.5 * sin(t * 0.52) + 2.5 * sin(t * 0.97));
+      // Movimento global bem visível: rotação + deriva suave.
+      float ang = radians(36.0 + 12.0 * sin(t * 0.72) + 5.0 * sin(t * 1.31));
       float ca = cos(ang), sa = sin(ang);
-      float scale = mix(1.58, 1.23, land);
-      float u = (ca * c.x + sa * c.y) * scale;
-      float v = (-sa * c.x + ca * c.y) * scale;
+      vec2 drift = vec2(
+        0.055 * sin(t * 0.53) + u_mouse.x * 0.025,
+        0.038 * cos(t * 0.47) - u_mouse.y * 0.020
+      );
+      vec2 q = p - drift;
+      float u = ca * q.x + sa * q.y;
+      float v = -sa * q.x + ca * q.y;
 
-      float L = mix(0.82, 1.02, land);
-      float edge = clamp(1.0 - pow(abs(u) / L, 2.35), 0.0, 1.0);
-      float taper = smoothstep(0.0, 0.10, edge);
+      // Comprimento da fita. Fica contida no centro, como na referência.
+      float halfLen = mix(0.74, 1.02, smoothstep(1.0, 1.8, aspect));
+      float edge = 1.0 - smoothstep(halfLen * 0.78, halfLen, abs(u));
 
-      // Linha central com ondulação perceptível: não é só um gradiente se mexendo.
-      float wave1 = 0.105 * sin(u * 2.75 + t * 0.92);
-      float wave2 = 0.040 * sin(u * 6.0 - t * 0.68 + 0.8);
-      float wave3 = 0.018 * sin(u * 10.0 + t * 1.17);
-      float center = (wave1 + wave2 + wave3) * taper;
+      // Linha central sinuosa que se transforma continuamente.
+      float wave =
+          0.075 * sin(u * 3.4 - t * 1.40)
+        + 0.032 * sin(u * 7.2 + t * 1.05)
+        + 0.015 * sin(u * 13.0 - t * 0.78);
+      float center = wave * edge;
       float d = v - center;
 
-      // Twist: cada face abre/fecha em momentos diferentes, simulando dobra de tecido.
-      float twist = sin(u * 3.85 - t * 1.12 + 0.55 * sin(t * .7));
-      float twist01 = 0.5 + 0.5 * twist;
-      float baseW = mix(0.30, 0.39, land) * edge;
-      float wPos = baseW * mix(0.18, 1.00, pow(twist01, 1.25));
-      float wNeg = baseW * mix(0.18, 1.00, pow(1.0 - twist01, 1.25));
+      // Largura fina e variável: abre e fecha em seções diferentes.
+      float pulse = 0.5 + 0.5 * sin(u * 4.2 + t * 1.32);
+      float pulse2 = 0.5 + 0.5 * sin(u * 2.1 - t * 0.92 + 1.7);
+      float baseW = mix(0.085, 0.165, pulse) * mix(0.72, 1.15, pulse2) * edge;
+
+      // Twist: duas faces trocam de dominância e simulam dobra de tecido.
+      float twist = sin(u * 4.9 - t * 1.58 + 0.9 * sin(t * 0.7));
       float side = step(0.0, d);
-      float width = mix(wNeg, wPos, side) + 0.002;
+      float faceMul = mix(0.58 + 0.42 * smoothstep(-1.0, 0.7, twist),
+                          0.58 + 0.42 * smoothstep(1.0, -0.7, twist), side);
+      float width = max(0.005, baseW * faceMul);
       float x = abs(d) / width;
 
-      // Corpo nítido + halo difuso ao redor, como na referência.
-      float body = gauss(x, 3.4) * taper;
-      float core = gauss(x, 13.0) * taper;
-      float halo = gauss(abs(d) / (baseW * 1.9 + 0.015), 1.35) * taper;
-      float haloWide = gauss(abs(d) / (baseW * 3.8 + 0.03), 1.0) * taper;
+      float body = gauss(x, 3.6) * edge;
+      float core = gauss(x, 16.0) * edge;
+      float halo = gauss(abs(d) / (baseW * 2.1 + 0.02), 1.25) * edge;
+      float haloWide = gauss(abs(d) / (baseW * 4.0 + 0.035), 1.0) * edge;
 
-      // Duas manchas deslocadas criam volume e cor “vazada” atrás da dobra.
-      float glowA = gauss((d - 0.12 * sin(u * 2.0 + t * .55)) / (baseW * 2.7 + .025), 1.1) * taper;
-      float glowB = gauss((d + 0.10 * cos(u * 1.7 - t * .63)) / (baseW * 2.4 + .025), 1.15) * taper;
+      // Manchas de cor deslocadas, também animadas.
+      float blobA = gauss((d - 0.095 * sin(u * 2.3 + t * 0.95)) / (baseW * 2.4 + 0.03), 1.25) * edge;
+      float blobB = gauss((d + 0.090 * cos(u * 1.9 - t * 0.82)) / (baseW * 2.8 + 0.03), 1.20) * edge;
 
-      float along = clamp(0.5 + 0.5 * u / L, 0.0, 1.0);
-      vec3 faceA = mix(MAG, VIO, smoothstep(0.08, 0.82, along));
-      vec3 faceB = mix(VIO, LIL, smoothstep(0.18, 0.96, along));
-      vec3 face = mix(faceB, faceA, side);
+      float along = clamp(0.5 + 0.5 * u / halfLen, 0.0, 1.0);
+      vec3 cA = mix(MAG, VIO, smoothstep(0.10, 0.68, along));
+      vec3 cB = mix(DEEP, LIL, smoothstep(0.20, 0.92, along));
+      vec3 face = mix(cB, cA, side);
 
-      // Brilho de uma das faces e linha escura da dobra central.
-      face = mix(face, WHITE, smoothstep(.28, .95, x) * .48);
-      float fold = gauss(d / (0.010 + 0.018 * edge), 2.3) * taper;
-      face = mix(face, DEEP, fold * (0.34 + 0.22 * (0.5 + 0.5 * sin(u * 5.0 - t))));
+      // Luz no bordo e vinco central escuro deixam a fita mais tridimensional.
+      face = mix(face, WHITE, smoothstep(0.35, 1.0, x) * 0.42);
+      float fold = gauss(d / (0.008 + 0.010 * edge), 2.5) * edge;
+      face = mix(face, DEEP, fold * (0.48 + 0.20 * sin(u * 6.0 - t * 1.1)));
 
       vec3 col = PAPER;
-      col = mix(col, MAG, clamp(glowA * .20, 0.0, .20));
-      col = mix(col, LIL, clamp(glowB * .24, 0.0, .24));
-      col = mix(col, VIO, clamp(haloWide * .12, 0.0, .12));
-      col = mix(col, mix(MAG, VIO, .62), clamp(halo * .27, 0.0, .27));
-      col = mix(col, face, clamp(body * .92, 0.0, .92));
-      col = mix(col, WHITE, clamp(core * .08 * (0.5 + 0.5 * cos(u * 6.0 + t)), 0.0, .08));
+      col = mix(col, MAG, clamp(blobA * 0.18, 0.0, 0.18));
+      col = mix(col, LIL, clamp(blobB * 0.20, 0.0, 0.20));
+      col = mix(col, VIO, clamp(haloWide * 0.10, 0.0, 0.10));
+      col = mix(col, mix(MAG, VIO, 0.55), clamp(halo * 0.24, 0.0, 0.24));
+      col = mix(col, face, clamp(body * 0.97, 0.0, 0.97));
+      col = mix(col, WHITE, clamp(core * 0.08, 0.0, 0.08));
 
-      // Vinheta quase imperceptível e grão fino para evitar aparência “digital lisa”.
-      float vign = smoothstep(1.4, .15, length(p * vec2(.62, .82)));
-      col = mix(PAPER, col, .90 + .10 * vign);
-      float n = fract(sin(dot(gl_FragCoord.xy + t * 9.0, vec2(12.9898, 78.233))) * 43758.5453);
-      col += (n - 0.5) * 0.010;
+      // Grão mínimo para evitar aparência chapada.
+      float n = fract(sin(dot(gl_FragCoord.xy + t * 17.0, vec2(12.9898, 78.233))) * 43758.5453);
+      col += (n - 0.5) * 0.006;
 
       gl_FragColor = vec4(col, 1.0);
     }
   `;
-
   function setupHeroLight() {
     const hero = $('[data-hero]');
     const canvas = $('[data-hero-canvas]');
