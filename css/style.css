@@ -306,14 +306,64 @@ button { cursor: pointer; background: none; border: 0; }
 
 .hero__visual { position: absolute; inset: 0; z-index: -1; }
 
-/* Fundo sem WebGL: um véu roxo diagonal suave */
+/* Fallback animado do hero. Continua vivo mesmo quando WebGL não está disponível. */
 .hero__fallback {
   position: absolute; inset: 0;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.hero__fallback::before,
+.hero__fallback::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: min(88vw, 76rem);
+  height: min(42vw, 32rem);
+  border-radius: 50% 28% 50% 24% / 42% 56% 34% 58%;
+  transform-origin: 50% 50%;
+  will-change: transform, filter, opacity;
+}
+
+.hero__fallback::before {
   background:
-    radial-gradient(22% 36% at 42% 58%, rgb(178 60 240 / .45), transparent 70%),
-    radial-gradient(24% 40% at 60% 42%, rgb(106 44 255 / .45), transparent 70%),
-    radial-gradient(40% 50% at 50% 50%, rgb(201 178 255 / .35), transparent 75%),
-    var(--paper);
+    radial-gradient(ellipse at 29% 58%, rgb(216 72 181 / .58) 0 12%, transparent 46%),
+    radial-gradient(ellipse at 53% 48%, rgb(106 44 255 / .74) 0 14%, transparent 48%),
+    radial-gradient(ellipse at 69% 42%, rgb(201 178 255 / .72) 0 12%, transparent 48%);
+  filter: blur(34px) saturate(1.18);
+  opacity: .9;
+  animation: hero-fallback-a 8s cubic-bezier(.45,0,.25,1) infinite alternate;
+}
+
+.hero__fallback::after {
+  width: min(72vw, 62rem);
+  height: min(13vw, 10rem);
+  border-radius: 100% 0 100% 0 / 70% 0 70% 0;
+  background: linear-gradient(104deg,
+    transparent 2%,
+    rgb(201 178 255 / .2) 10%,
+    rgb(216 72 181 / .76) 34%,
+    rgb(91 18 217 / .92) 53%,
+    rgb(157 91 255 / .72) 70%,
+    transparent 96%);
+  filter: blur(3px) saturate(1.12);
+  box-shadow: 0 2.5rem 5rem rgb(106 44 255 / .18), 0 -2rem 5rem rgb(216 72 181 / .16);
+  opacity: .92;
+  animation: hero-fallback-b 6.4s cubic-bezier(.5,.02,.2,1) infinite alternate;
+}
+
+@keyframes hero-fallback-a {
+  0%   { transform: translate(-52%, -50%) rotate(-12deg) scale(.88, .72) skewX(-10deg); }
+  35%  { transform: translate(-48%, -49%) rotate(8deg) scale(1.04, .95) skewX(6deg); }
+  70%  { transform: translate(-51%, -52%) rotate(-4deg) scale(.94, 1.08) skewX(-5deg); }
+  100% { transform: translate(-47%, -48%) rotate(14deg) scale(1.08, .78) skewX(10deg); }
+}
+
+@keyframes hero-fallback-b {
+  0%   { transform: translate(-56%, -52%) rotate(-28deg) scale(.78, .8) skewX(-12deg); }
+  38%  { transform: translate(-49%, -48%) rotate(-16deg) scale(1.06, 1.24) skewX(8deg); }
+  72%  { transform: translate(-45%, -54%) rotate(-34deg) scale(.92, .72) skewX(-8deg); }
+  100% { transform: translate(-51%, -47%) rotate(-20deg) scale(1.14, 1.16) skewX(11deg); }
 }
 
 .hero__canvas {
@@ -871,4 +921,5 @@ button { cursor: pointer; background: none; border: 0; }
   }
   .js .reveal { opacity: 1; transform: none; }
   .js .hero__title.is-split .w__i { transform: none; }
+  .hero__fallback::before, .hero__fallback::after { animation: none !important; }
 }

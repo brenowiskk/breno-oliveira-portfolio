@@ -233,50 +233,91 @@
     uniform float u_time;
     uniform vec2 u_mouse;
 
-    const vec3 PAPER = vec3(0.965, 0.961, 0.949);   // #f6f5f2
-    const vec3 DEEP  = vec3(0.357, 0.071, 0.851);   // #5b12d9  dobra
-    const vec3 VIO   = vec3(0.416, 0.173, 1.000);   // #6a2cff  violeta
-    const vec3 ORC   = vec3(0.698, 0.235, 0.941);   // #b23cf0  orquídea
-    const vec3 LIL   = vec3(0.788, 0.698, 1.000);   // #c9b2ff  lilás
+    const vec3 PAPER = vec3(0.965, 0.961, 0.949); // #f6f5f2
+    const vec3 DEEP  = vec3(0.357, 0.071, 0.851); // #5b12d9
+    const vec3 VIO   = vec3(0.416, 0.173, 1.000); // #6a2cff
+    const vec3 MAG   = vec3(0.847, 0.282, 0.710); // rosa/magenta
+    const vec3 LIL   = vec3(0.788, 0.698, 1.000); // lilás
+    const vec3 WHITE = vec3(0.995, 0.992, 1.000);
 
-    // Fita de seda dobrada: uma aresta nítida (a dobra) e duas faces
-    // que se desfazem no fundo claro. As faces trocam de largura
-    // ao longo do tempo, como se a fita girasse no ar.
+    float gauss(float x, float k) { return exp(-x * x * k); }
+
     void main() {
       vec2 p = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;
-      float land = smoothstep(0.85, 1.25, u_res.x / u_res.y);
+      float aspect = u_res.x / u_res.y;
+      float land = smoothstep(0.9, 1.3, aspect);
       float t = u_time;
 
-      vec2 c = p - vec2(0.0, mix(0.03, 0.0, land)) - u_mouse * vec2(0.04, -0.04);
-      float ang = radians(mix(62.0, 33.0, land) + 6.0 * sin(t * 0.3));
-      float ca = cos(ang);
-      float sa = sin(ang);
-      float sc = mix(1.7, 1.35, land);
-      float u = (ca * c.x + sa * c.y) * sc;
-      float v = (-sa * c.x + ca * c.y) * sc;
+      // O conjunto inteiro respira e cruza o centro como uma faixa de seda.
+      vec2 drift = vec2(
+        0.045 * sin(t * 0.47) + u_mouse.x * 0.045,
+        0.025 * cos(t * 0.41) - u_mouse.y * 0.035
+      );
+      vec2 c = p - drift;
 
-      float L = 0.78;
-      float taper = clamp(1.0 - (u / L) * (u / L), 0.0, 1.0);
-      float v0 = 0.09 * sin(u * 2.3 + t * 0.55) + 0.05 * sin(u * 4.1 - t * 0.42 + 1.2);
-      float d = v - v0;
+      float baseAngle = mix(56.0, 29.0, land);
+      float ang = radians(baseAngle + 8.5 * sin(t * 0.52) + 2.5 * sin(t * 0.97));
+      float ca = cos(ang), sa = sin(ang);
+      float scale = mix(1.58, 1.23, land);
+      float u = (ca * c.x + sa * c.y) * scale;
+      float v = (-sa * c.x + ca * c.y) * scale;
 
-      float k = cos(u * 2.1 - t * 0.7);
-      float wA = 0.46 * taper * (0.12 + 0.88 * pow(clamp(k * 0.5 + 0.5, 0.0, 1.0), 1.4));
-      float wB = 0.46 * taper * (0.12 + 0.88 * pow(clamp(-k * 0.5 + 0.5, 0.0, 1.0), 1.4));
+      float L = mix(0.82, 1.02, land);
+      float edge = clamp(1.0 - pow(abs(u) / L, 2.35), 0.0, 1.0);
+      float taper = smoothstep(0.0, 0.10, edge);
+
+      // Linha central com ondulação perceptível: não é só um gradiente se mexendo.
+      float wave1 = 0.105 * sin(u * 2.75 + t * 0.92);
+      float wave2 = 0.040 * sin(u * 6.0 - t * 0.68 + 0.8);
+      float wave3 = 0.018 * sin(u * 10.0 + t * 1.17);
+      float center = (wave1 + wave2 + wave3) * taper;
+      float d = v - center;
+
+      // Twist: cada face abre/fecha em momentos diferentes, simulando dobra de tecido.
+      float twist = sin(u * 3.85 - t * 1.12 + 0.55 * sin(t * .7));
+      float twist01 = 0.5 + 0.5 * twist;
+      float baseW = mix(0.30, 0.39, land) * edge;
+      float wPos = baseW * mix(0.18, 1.00, pow(twist01, 1.25));
+      float wNeg = baseW * mix(0.18, 1.00, pow(1.0 - twist01, 1.25));
       float side = step(0.0, d);
-      float x = abs(d) / (mix(wB, wA, side) + 1e-4);
+      float width = mix(wNeg, wPos, side) + 0.002;
+      float x = abs(d) / width;
 
-      float inten = exp(-x * x * 1.5) * smoothstep(0.0, 0.06, taper);
-      float along = smoothstep(-L, L, u);
-      vec3 col = mix(mix(VIO, ORC, along), mix(ORC, VIO, along), side);
-      col = mix(col, LIL, smoothstep(0.25, 1.1, x) * 0.85);
-      float fold = exp(-pow(abs(d) / (0.006 + 0.02 * taper), 2.0)) * taper;
-      col = mix(col, DEEP, fold * 0.35);
+      // Corpo nítido + halo difuso ao redor, como na referência.
+      float body = gauss(x, 3.4) * taper;
+      float core = gauss(x, 13.0) * taper;
+      float halo = gauss(abs(d) / (baseW * 1.9 + 0.015), 1.35) * taper;
+      float haloWide = gauss(abs(d) / (baseW * 3.8 + 0.03), 1.0) * taper;
 
-      vec3 outc = mix(PAPER, col, clamp(inten * 0.82, 0.0, 1.0));
-      float n = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
-      outc += (n - 0.5) * 0.02;
-      gl_FragColor = vec4(outc, 1.0);
+      // Duas manchas deslocadas criam volume e cor “vazada” atrás da dobra.
+      float glowA = gauss((d - 0.12 * sin(u * 2.0 + t * .55)) / (baseW * 2.7 + .025), 1.1) * taper;
+      float glowB = gauss((d + 0.10 * cos(u * 1.7 - t * .63)) / (baseW * 2.4 + .025), 1.15) * taper;
+
+      float along = clamp(0.5 + 0.5 * u / L, 0.0, 1.0);
+      vec3 faceA = mix(MAG, VIO, smoothstep(0.08, 0.82, along));
+      vec3 faceB = mix(VIO, LIL, smoothstep(0.18, 0.96, along));
+      vec3 face = mix(faceB, faceA, side);
+
+      // Brilho de uma das faces e linha escura da dobra central.
+      face = mix(face, WHITE, smoothstep(.28, .95, x) * .48);
+      float fold = gauss(d / (0.010 + 0.018 * edge), 2.3) * taper;
+      face = mix(face, DEEP, fold * (0.34 + 0.22 * (0.5 + 0.5 * sin(u * 5.0 - t))));
+
+      vec3 col = PAPER;
+      col = mix(col, MAG, clamp(glowA * .20, 0.0, .20));
+      col = mix(col, LIL, clamp(glowB * .24, 0.0, .24));
+      col = mix(col, VIO, clamp(haloWide * .12, 0.0, .12));
+      col = mix(col, mix(MAG, VIO, .62), clamp(halo * .27, 0.0, .27));
+      col = mix(col, face, clamp(body * .92, 0.0, .92));
+      col = mix(col, WHITE, clamp(core * .08 * (0.5 + 0.5 * cos(u * 6.0 + t)), 0.0, .08));
+
+      // Vinheta quase imperceptível e grão fino para evitar aparência “digital lisa”.
+      float vign = smoothstep(1.4, .15, length(p * vec2(.62, .82)));
+      col = mix(PAPER, col, .90 + .10 * vign);
+      float n = fract(sin(dot(gl_FragCoord.xy + t * 9.0, vec2(12.9898, 78.233))) * 43758.5453);
+      col += (n - 0.5) * 0.010;
+
+      gl_FragColor = vec4(col, 1.0);
     }
   `;
 
@@ -346,8 +387,8 @@
       const cssH = Math.max(1, rect.height);
       s.small = cssW < 768;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      let scale = dpr * (s.small ? 0.55 : 0.6);
-      const maxPixels = s.small ? 260000 : 820000;
+      let scale = dpr * (s.small ? 0.58 : 0.72);
+      const maxPixels = s.small ? 300000 : 1050000;
       if (cssW * cssH * scale * scale > maxPixels) scale = Math.sqrt(maxPixels / (cssW * cssH));
       const w = Math.max(1, Math.round(cssW * scale));
       const h = Math.max(1, Math.round(cssH * scale));
