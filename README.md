@@ -29,7 +29,7 @@ A imagem só é carregada quando a seção se aproxima da tela.
 
 **WhatsApp, e-mail e redes**
 Tudo em `CONFIG`, no início de `js/main.js`: número, mensagem que já chega escrita,
-e-mail e links de Instagram, LinkedIn, Behance e GitHub. O e-mail está configurado; redes sociais vazias ficam ocultas.
+e-mail e links de Instagram, LinkedIn, Behance e GitHub. Campos vazios ficam ocultos.
 Cada botão pode ter uma mensagem própria com `data-wa="texto"` no HTML.
 
 **Cores e fontes**
