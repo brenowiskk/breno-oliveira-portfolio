@@ -46,8 +46,11 @@ com o `index.html` na raiz.
 
 ## Desempenho e acessibilidade
 
-- O fundo animado do topo é um shader WebGL leve: renderiza em resolução reduzida,
-  roda a 30 fps no celular, pausa quando sai da tela ou quando a aba fica oculta
-  e fica estático para quem ativa "reduzir movimento" no sistema.
-- Sem WebGL, um gradiente em CSS ocupa o lugar automaticamente.
+- O fundo do topo é um vídeo de 8 segundos em loop perfeito (assets/video/hero-loop.webm,
+  130 KB, e hero-loop.mp4, 460 KB), com poster em assets/img/hero-poster.jpg.
+  Sem canvas, sem WebGL e sem biblioteca: se o autoplay for bloqueado, fica o poster.
+- O vídeo pausa sozinho quando sai da tela ou quando a aba fica oculta, e não toca
+  para quem ativa "reduzir movimento" no sistema.
+- A intensidade é controlada pelo .hero__veil, em css/style.css. Para trocar o vídeo,
+  substitua os dois arquivos em assets/video/ e gere um novo poster do primeiro quadro.
 - Navegação por teclado, foco visível, menu com Esc e textos alternativos nas imagens.

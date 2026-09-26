@@ -188,6 +188,7 @@
     split(title, frag);
     title.textContent = '';
     title.append(frag);
+
     title.classList.add('is-split');
     requestAnimationFrame(() => requestAnimationFrame(() => title.classList.add('is-in')));
     return title;
@@ -216,212 +217,39 @@
   }
 
   /* -----------------------------------------------------------
-     Hero: fita roxa em movimento (WebGL)
-     Renderiza em resolução reduzida, pausa fora da tela ou com a
-     aba oculta, roda a 30 fps no celular e fica estática para
-     quem prefere menos movimento. Sem WebGL, o gradiente em CSS
-     (.hero__fallback) continua no lugar.
+     Vídeo do hero: pausa fora da tela, com a aba oculta ou para
+     quem prefere menos movimento. Se o autoplay for bloqueado
+     (iPhone em modo de baixo consumo, por exemplo), fica o poster.
      ----------------------------------------------------------- */
-  const HERO_FRAG = `
-    #ifdef GL_FRAGMENT_PRECISION_HIGH
-    precision highp float;
-    #else
-    precision mediump float;
-    #endif
+  function setupHeroVideo() {
+    const video = $('[data-hero-video]');
+    if (!video) return;
 
-    uniform vec2 u_res;
-    uniform float u_time;
-    uniform vec2 u_mouse;
-
-    const vec3 PAPER  = vec3(0.965, 0.961, 0.949);  // #f6f5f2  fundo
-    const vec3 PURPLE = vec3(0.482, 0.173, 0.941);  // #7b2cf0  roxo
-    const vec3 ROYAL  = vec3(0.141, 0.251, 0.847);  // #2440d8  azul royal
-    const vec3 DEEP   = vec3(0.165, 0.184, 0.478);  // #2a2f7a  dobra
-    const vec3 SILVER = vec3(0.722, 0.749, 0.800);  // #b8bfcc  prata
-    const vec3 SHEEN  = vec3(0.906, 0.918, 0.941);  // #e7eaf0  brilho prateado
-
-    // Fita de seda: uma dobra nítida, duas faces que trocam de largura
-    // e ondas de velocidades diferentes, para o movimento nunca repetir.
-    void main() {
-      vec2 p = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;
-      float land = smoothstep(0.85, 1.25, u_res.x / u_res.y);
-      float t = u_time;
-
-      vec2 c = p - vec2(0.0, mix(0.03, 0.0, land)) - u_mouse * vec2(0.05, -0.05);
-      float ang = radians(mix(62.0, 33.0, land) + 8.0 * sin(t * 0.5) + 3.0 * sin(t * 0.83 + 1.1));
-      float ca = cos(ang);
-      float sa = sin(ang);
-      float sc = mix(1.7, 1.35, land);
-      float u = (ca * c.x + sa * c.y) * sc;
-      float v = (-sa * c.x + ca * c.y) * sc;
-
-      float L = 0.8;
-      float taper = clamp(1.0 - (u / L) * (u / L), 0.0, 1.0);
-      float v0 = 0.085 * sin(u * 2.1 + t * 0.95)
-               + 0.055 * sin(u * 3.6 - t * 0.72 + 1.3)
-               + 0.030 * sin(u * 5.4 + t * 1.35 + 2.1);
-      float d = v - v0;
-
-      // torção viajando ao longo da fita
-      float k = clamp((cos(u * 2.4 - t * 1.15) + 0.35 * cos(u * 4.3 + t * 0.8 + 2.0)) / 1.35, -1.0, 1.0);
-      float wA = 0.50 * taper * (0.10 + 0.90 * pow(clamp(k * 0.5 + 0.5, 0.0, 1.0), 1.3));
-      float wB = 0.50 * taper * (0.10 + 0.90 * pow(clamp(-k * 0.5 + 0.5, 0.0, 1.0), 1.3));
-      float side = step(0.0, d);
-      float x = abs(d) / (mix(wB, wA, side) + 1e-4);
-
-      float edge = smoothstep(0.0, 0.07, taper);
-      float body = exp(-x * x * 1.45) * edge;
-      float halo = exp(-x * x * 0.32) * edge;
-
-      // as cores correm ao longo da fita e trocam de face
-      float sw = 0.5 + 0.5 * sin((smoothstep(-L, L, u) * 2.0 + t * 0.28) * 3.14159265);
-      vec3 col = mix(mix(PURPLE, ROYAL, sw), mix(ROYAL, PURPLE, sw), side);
-      col = mix(col, SILVER, smoothstep(0.26, 1.1, x) * 0.88);
-
-      float q = (abs(d) - 0.012 * taper) / (0.02 + 0.05 * taper);
-      float sheen = exp(-q * q) * taper * clamp(1.0 - abs(k), 0.0, 1.0);
-      col = mix(col, SHEEN, sheen * 0.5);
-
-      float fq = abs(d) / (0.005 + 0.018 * taper);
-      col = mix(col, DEEP, exp(-fq * fq) * taper * 0.22);
-
-      float alpha = clamp(body * 0.82 + halo * 0.2, 0.0, 1.0);
-      vec3 outc = mix(PAPER, col, alpha);
-      float n = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
-      outc += (n - 0.5) * 0.02;
-      gl_FragColor = vec4(outc, 1.0);
-    }
-  `;
-
-  function setupHeroLight() {
-    const hero = $('[data-hero]');
-    const canvas = $('[data-hero-canvas]');
-    if (!hero || !canvas) return;
-
-    let gl = null;
-    try {
-      gl = canvas.getContext('webgl', {
-        alpha: false, antialias: false, depth: false, stencil: false,
-        premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'low-power'
-      });
-    } catch (_) { gl = null; }
-    if (!gl) return;
-
-    const compile = (type, src) => {
-      const shader = gl.createShader(type);
-      gl.shaderSource(shader, src);
-      gl.compileShader(shader);
-      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.warn('[portfolio] shader:', gl.getShaderInfoLog(shader));
-        return null;
-      }
-      return shader;
+    const tryPlay = () => {
+      if (reduceMotion.matches || document.hidden || video.dataset.offscreen === '1') return;
+      const p = video.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
     };
-    const vs = compile(gl.VERTEX_SHADER, 'attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}');
-    const fs = compile(gl.FRAGMENT_SHADER, HERO_FRAG);
-    if (!vs || !fs) return;
-    const program = gl.createProgram();
-    gl.attachShader(program, vs);
-    gl.attachShader(program, fs);
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
-    gl.useProgram(program);
+    const stop = () => { try { video.pause(); } catch (_) {} };
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(program, 'a');
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-
-    const u = {
-      res: gl.getUniformLocation(program, 'u_res'),
-      time: gl.getUniformLocation(program, 'u_time'),
-      mouse: gl.getUniformLocation(program, 'u_mouse')
-    };
-
-    const s = {
-      w: 1, h: 1,
-      t: 3, last: 0, raf: 0,
-      running: false, visible: true, small: false,
-      mx: 0, my: 0, tx: 0, ty: 0
-    };
-
-    const draw = () => {
-      gl.uniform2f(u.res, s.w, s.h);
-      gl.uniform1f(u.time, s.t);
-      gl.uniform2f(u.mouse, s.mx, s.my);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-    };
-
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const cssW = Math.max(1, rect.width);
-      const cssH = Math.max(1, rect.height);
-      s.small = cssW < 768;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      let scale = dpr * (s.small ? 0.55 : 0.6);
-      const maxPixels = s.small ? 260000 : 820000;
-      if (cssW * cssH * scale * scale > maxPixels) scale = Math.sqrt(maxPixels / (cssW * cssH));
-      const w = Math.max(1, Math.round(cssW * scale));
-      const h = Math.max(1, Math.round(cssH * scale));
-      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-      s.w = w; s.h = h;
-      gl.viewport(0, 0, w, h);
-      if (!s.running) draw();
-    };
-
-    const frame = (now) => {
-      s.raf = requestAnimationFrame(frame);
-      const dt = now - s.last;
-      if (s.small && dt < 1000 / 31) return; // 30 fps no celular
-      s.last = now;
-      s.t += Math.min(dt, 64) / 1000;
-      s.mx += (s.tx - s.mx) * 0.05;
-      s.my += (s.ty - s.my) * 0.05;
-      draw();
-    };
-
-    const play = () => {
-      if (s.running || reduceMotion.matches || !s.visible || document.hidden) return;
-      s.running = true;
-      s.last = performance.now();
-      s.raf = requestAnimationFrame(frame);
-    };
-    const pause = () => {
-      s.running = false;
-      cancelAnimationFrame(s.raf);
-    };
-
-    resize();
-    draw();
-    requestAnimationFrame(() => canvas.classList.add('is-ready'));
-
-    if ('ResizeObserver' in window) new ResizeObserver(resize).observe(canvas);
-    else window.addEventListener('resize', resize);
+    if (reduceMotion.matches) { video.removeAttribute('autoplay'); stop(); }
 
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(([entry]) => {
-        s.visible = entry.isIntersecting;
-        if (s.visible) play(); else pause();
-      }).observe(hero);
-    }
-    document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); else play(); });
-    onMedia(reduceMotion, () => { if (reduceMotion.matches) pause(); else play(); });
-
-    if (finePointer.matches) {
-      window.addEventListener('pointermove', (e) => {
-        s.tx = e.clientX / window.innerWidth - 0.5;
-        s.ty = e.clientY / window.innerHeight - 0.5;
-      }, { passive: true });
+        video.dataset.offscreen = entry.isIntersecting ? '0' : '1';
+        if (entry.isIntersecting) tryPlay(); else stop();
+      }, { threshold: 0.01 }).observe(video);
     }
 
-    canvas.addEventListener('webglcontextlost', (e) => {
-      e.preventDefault();
-      pause();
-      canvas.classList.remove('is-ready');
-    });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else tryPlay(); });
+    window.addEventListener('pageshow', tryPlay);
+    window.addEventListener('focus', tryPlay);
+    onMedia(reduceMotion, () => { if (reduceMotion.matches) stop(); else tryPlay(); });
+    // alguns navegadores só liberam o autoplay depois de um toque
+    ['pointerdown', 'touchstart', 'keydown'].forEach((evt) =>
+      window.addEventListener(evt, tryPlay, { once: true, passive: true }));
 
-    play();
+    tryPlay();
   }
 
   /* -----------------------------------------------------------
@@ -629,7 +457,7 @@
   run(setupMenu);
   run(setupScrollSpy);
   run(setupTitle);
-  run(setupHeroLight);
+  run(setupHeroVideo);
   run(setupHeroScroll);
   run(setupReveal);
   window.__siteReady = true;
