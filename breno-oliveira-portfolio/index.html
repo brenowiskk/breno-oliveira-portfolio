@@ -100,11 +100,13 @@
     <!-- ============================== HERO ============================== -->
     <section class="hero" id="inicio" aria-labelledby="hero-title" data-hero>
       <div class="hero__visual" aria-hidden="true">
-        <div class="hero__silk">
-          <span class="hero__silk-band"></span>
-          <span class="hero__silk-core"></span>
-          <span class="hero__silk-sheen"></span>
-        </div>
+        <video class="hero__video" data-hero-video
+               autoplay muted loop playsinline preload="auto"
+               poster="assets/img/hero-poster.jpg">
+          <source src="assets/video/hero-loop.webm" type="video/webm">
+          <source src="assets/video/hero-loop.mp4" type="video/mp4">
+        </video>
+        <div class="hero__veil"></div>
       </div>
 
       <div class="container hero__inner" data-hero-inner>

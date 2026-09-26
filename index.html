@@ -6,7 +6,7 @@
   <title>Breno Oliveira | Criação de Sites Profissionais</title>
   <meta name="description" content="Portfólio de Breno Oliveira com foco em criação de sites modernos, profissionais e responsivos para empresas, marcas e profissionais.">
   <meta name="author" content="Breno Oliveira">
-  <meta name="theme-color" content="#f6f5f2">
+  <meta name="theme-color" content="#ffffff">
   <meta name="color-scheme" content="light">
   <meta name="format-detection" content="telephone=no">
   <!-- Quando o domínio estiver no ar, descomente e ajuste: -->
@@ -100,8 +100,13 @@
     <!-- ============================== HERO ============================== -->
     <section class="hero" id="inicio" aria-labelledby="hero-title" data-hero>
       <div class="hero__visual" aria-hidden="true">
-        <div class="hero__fallback"></div>
-        <canvas class="hero__canvas" data-hero-canvas></canvas>
+        <video class="hero__video" data-hero-video
+               autoplay muted loop playsinline preload="auto"
+               poster="assets/img/hero-poster.jpg">
+          <source src="assets/video/hero-loop.webm" type="video/webm">
+          <source src="assets/video/hero-loop.mp4" type="video/mp4">
+        </video>
+        <div class="hero__veil"></div>
       </div>
 
       <div class="container hero__inner" data-hero-inner>
@@ -119,7 +124,9 @@
         </div>
 
         <p class="hero__support reveal">Portfólio com foco em criação de sites institucionais, páginas profissionais e experiências digitais elegantes.</p>
+
       </div>
+
 
       <div class="container hero__bar reveal">
         <p>© <span data-year>2026</span> Breno Oliveira</p>

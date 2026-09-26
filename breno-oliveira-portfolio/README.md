@@ -46,10 +46,11 @@ com o `index.html` na raiz.
 
 ## Desempenho e acessibilidade
 
-- A fita animada do topo é feita só com CSS (três camadas em roxo, azul royal e
-  prata, com velocidades diferentes). Não usa canvas, WebGL, imagem nem biblioteca,
-  então funciona em qualquer navegador e não depende da GPU.
-- Cores, tamanho e inclinação ficam no bloco "Fundo animado do hero", em css/style.css
-  (a variável --silk-rot controla a inclinação; há um valor próprio para o celular).
-- Para quem ativa "reduzir movimento" no sistema, a fita aparece parada.
+- O fundo do topo é um vídeo de 8 segundos em loop perfeito (assets/video/hero-loop.webm,
+  130 KB, e hero-loop.mp4, 460 KB), com poster em assets/img/hero-poster.jpg.
+  Sem canvas, sem WebGL e sem biblioteca: se o autoplay for bloqueado, fica o poster.
+- O vídeo pausa sozinho quando sai da tela ou quando a aba fica oculta, e não toca
+  para quem ativa "reduzir movimento" no sistema.
+- A intensidade é controlada pelo .hero__veil, em css/style.css. Para trocar o vídeo,
+  substitua os dois arquivos em assets/video/ e gere um novo poster do primeiro quadro.
 - Navegação por teclado, foco visível, menu com Esc e textos alternativos nas imagens.

@@ -217,6 +217,42 @@
   }
 
   /* -----------------------------------------------------------
+     Vídeo do hero: pausa fora da tela, com a aba oculta ou para
+     quem prefere menos movimento. Se o autoplay for bloqueado
+     (iPhone em modo de baixo consumo, por exemplo), fica o poster.
+     ----------------------------------------------------------- */
+  function setupHeroVideo() {
+    const video = $('[data-hero-video]');
+    if (!video) return;
+
+    const tryPlay = () => {
+      if (reduceMotion.matches || document.hidden || video.dataset.offscreen === '1') return;
+      const p = video.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    };
+    const stop = () => { try { video.pause(); } catch (_) {} };
+
+    if (reduceMotion.matches) { video.removeAttribute('autoplay'); stop(); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(([entry]) => {
+        video.dataset.offscreen = entry.isIntersecting ? '0' : '1';
+        if (entry.isIntersecting) tryPlay(); else stop();
+      }, { threshold: 0.01 }).observe(video);
+    }
+
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else tryPlay(); });
+    window.addEventListener('pageshow', tryPlay);
+    window.addEventListener('focus', tryPlay);
+    onMedia(reduceMotion, () => { if (reduceMotion.matches) stop(); else tryPlay(); });
+    // alguns navegadores só liberam o autoplay depois de um toque
+    ['pointerdown', 'touchstart', 'keydown'].forEach((evt) =>
+      window.addEventListener(evt, tryPlay, { once: true, passive: true }));
+
+    tryPlay();
+  }
+
+  /* -----------------------------------------------------------
      Projetos conceito (dados em js/projetos.js)
      ----------------------------------------------------------- */
   const EMBLEMS = {
@@ -421,6 +457,7 @@
   run(setupMenu);
   run(setupScrollSpy);
   run(setupTitle);
+  run(setupHeroVideo);
   run(setupHeroScroll);
   run(setupReveal);
   window.__siteReady = true;
