@@ -46,8 +46,8 @@ com o `index.html` na raiz.
 
 ## Desempenho e acessibilidade
 
-- O fundo do topo é um vídeo de 8 segundos em loop perfeito (assets/video/hero-loop.webm,
-  130 KB, e hero-loop.mp4, 460 KB), com poster em assets/img/hero-poster.jpg.
+- O fundo do topo é um vídeo de 15 segundos em loop perfeito (assets/video/hero-loop.webm,
+  960 KB, e hero-loop.mp4, 2 MB), com poster em assets/img/hero-poster.jpg.
   Sem canvas, sem WebGL e sem biblioteca: se o autoplay for bloqueado, fica o poster.
 - O vídeo pausa sozinho quando sai da tela ou quando a aba fica oculta, e não toca
   para quem ativa "reduzir movimento" no sistema.
